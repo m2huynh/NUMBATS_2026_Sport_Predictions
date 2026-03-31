@@ -3,7 +3,7 @@ library(fitzRoy)
 library(gtools)
 library(tidymodels)
 library(ranger)
-
+### a
 afl2024 <- fitzRoy::fetch_player_stats_afltables(season = 2024)
 str(afl2024)
 
