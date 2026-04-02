@@ -11,10 +11,7 @@ execute:
 
 A bit of background for non AFL fans:
 
-In the Australian Football League (AFL), 18 teams compete in the **regular** season across 24 rounds.
-    -   Teams that win a match receive 4 points
-    -   Teams that draw receive 2 points
-    -   Teams that lose receive 0 points
+In the Australian Football League (AFL), 18 teams compete in the **regular** season across 24 rounds. - Teams that win a match receive 4 points - Teams that draw receive 2 points - Teams that lose receive 0 points
 
 For example, here is the ladder at the end of the 2024 regular season:
 
@@ -38,7 +35,6 @@ We will:
 3.  Simulate the AFL finals series
 4.  Compare results to the ladder
 
-
 ## Setup
 
 ```{r}
@@ -50,16 +46,15 @@ library(gtools)
 library(elo)
 ```
 
-
 ## Data Collection
 
 We will use the `fitzRoy` R package, which provides a convenient interface for retrieving AFL data from multiple sources, including "AFL Tables".
 
 The package allows us to easily obtain:
 
-- Match results (scores, margins, teams)
-- Player-level statistics (kicks, marks, inside 50s, etc.)
-- Historical data across multiple seasons
+-   Match results (scores, margins, teams)
+-   Player-level statistics (kicks, marks, inside 50s, etc.)
+-   Historical data across multiple seasons
 
 In this workshop, we focus on 2024 season data.
 
@@ -79,31 +74,25 @@ afl2024_rr <- afl2024 |> filter(Round.Type == "Regular")
 
 The first model we will try to build is the Elo model, which is a simple rating system that updates team ratings based on match outcomes. The key ideas are:
 
-- Two players (or teams) start with an initial rating ($R_0$)
-- After a match, the winner takes points from the loser, and the amount depends on the expected outcome. For example:
-  - If a strong team beats a weak team, the rating change is small, but 
-  - If a weak team beats a strong team, the rating change is large.
-
-
+-   Two players (or teams) start with an initial rating ($R_0$)
+-   After a match, the winner takes points from the loser, and the amount depends on the expected outcome. For example:
+    -   If a strong team beats a weak team, the rating change is small, but
+    -   If a weak team beats a strong team, the rating change is large.
 
 ::: {.callout-note .panel-tabset}
-
 ## Example 1 (Expected win)
 
-- Player A (initial rating = 1600) plays a match against player B (initial rating = 1400).
-- Player A beats player B in this match
-- Player A gains 8 points (new elo rating becomes 1608), whereas Player B loses 8 points (new elo rating becomes 1392)
-
+-   Player A (initial rating = 1600) plays a match against player B (initial rating = 1400).
+-   Player A beats player B in this match
+-   Player A gains 8 points (new elo rating becomes 1608), whereas Player B loses 8 points (new elo rating becomes 1392)
 :::
 
 ::: {.callout-note .panel-tabset}
-
 ## Example 2 (Unexpected win)
 
-- Player A (initial rating = 1600) plays a match against player B (initial rating = 1400).
-- Player B beats player A in this match
-- Player B gains 24 points (new elo rating becomes 1424), whereas Player A loses 24 points (new elo rating becomes 1576)
-
+-   Player A (initial rating = 1600) plays a match against player B (initial rating = 1400).
+-   Player B beats player A in this match
+-   Player B gains 24 points (new elo rating becomes 1424), whereas Player A loses 24 points (new elo rating becomes 1576)
 :::
 
 The formula for updating ratings is:
@@ -112,12 +101,12 @@ $$R_{updated} = R_{0} + K \times (S - P)$$
 
 Where:
 
-  - R is the rating, 
-  - K is a constant that determines how much ratings change after each match, 
-  - S is the actual score (1 for a win, 0.5 for a draw, 0 for a loss), and 
-  - P is the expected probability based on the ratings of the two players.
+-   R is the rating,
+-   K is a constant that determines how much ratings change after each match,
+-   S is the actual score (1 for a win, 0.5 for a draw, 0 for a loss), and
+-   P is the expected probability based on the ratings of the two players.
 
-The probability, P, of player A beating player B can be calculated using the formula: 
+The probability, P, of player A beating player B can be calculated using the formula:
 
 $$
 P(A) = \frac{1}{1 + 10^{(R_B - R_A)/400}}
@@ -127,8 +116,9 @@ We can use the `elo.prob()` function from the `elo` package to calculate these p
 
 ```{r}
 elo::elo.prob(1600, 1400)
-```
 
+elo.prob(1700,1300)
+```
 
 Elo models are often highly effective in sports despite their simplicity because they capture the key driver of outcomes: **relative team strength**. By continuously updating ratings based on match results and opponent quality, Elo naturally adjusts for strength of schedule and recent performance without requiring detailed data. This allows it to produce well-calibrated probabilities and robust rankings using only win–loss information.
 
@@ -158,6 +148,8 @@ elo_fit <- elo::elo.run(
   k = 50,
   history = TRUE
 )
+
+elo_fit |> as_tibble()
 ```
 
 Note: I am using arbitrary values for the initial ratings and K factor, but these can be tuned for better performance.
@@ -184,13 +176,10 @@ With the current ELO ratings, we can use the `elo.prob()` function to estimate t
 elo::elo.prob(1602.940, 1602.270)
 ```
 
-
-::: {.callout-note}
-
+::: callout-note
 ## Simulatation in Sports
 
 In sports, it is common to use simulation to estimate outcomes in complex tournament settings where results depend on multiple sequential events. To estimate each team’s chance of winning the premiership, we simulate the AFL finals series using the match probabilities derived from our models. Because each round depends on previous results, calculating exact probabilities is difficult. Instead, we repeatedly simulate each match by sampling a winner based on the estimated probabilities, progressing teams through the finals bracket. By running many simulations, we approximate the distribution of outcomes and estimate how often each team wins the premiership.
-
 :::
 
 To simulate the final series, we will create a grid of all possible matchups between the top 8 teams, calculate the probabilities of each team winning against every other team, and then simulate the matches based on those probabilities.
@@ -231,8 +220,7 @@ grid_prob <- grid_elo |>
     oppProb = 1 - teamProb)
 ```
 
-::: {.callout-note}
-
+::: callout-note
 ## `sample()`
 
 We can use the `sample()` function to choose a winner based on the probabilities we have calculated. For example, suppose Brisbane (ELO = 1586.272) was to play Carlton (ELO = 1503.476). The probabilities here are 0.617 and 0.383. This means, the `sample()` function should pick Brisbane as the winner more times than Carlton.
@@ -240,12 +228,11 @@ We can use the `sample()` function to choose a winner based on the probabilities
 ```{r}
 sample(c("Brisbane", "Carlton"), 1, prob = c(0.617, 0.383))
 ```
-
 :::
 
 ### Write a function to simulate the finals
 
-TLDR; 
+TLDR;
 
 ```{r}
 simulate_afl_finals <- function(grid_prob, n_sims = 1000) {
@@ -401,10 +388,10 @@ finals_simulation_results <-
 ### Summarise results
 
 ```{r}
-finals_simulation_results %>%
-  group_by(Team, Result) %>%
-  summarise(n = n()) %>%
-  tidyr::pivot_wider(names_from = Result, values_from = n, values_fill = 0) %>%
+finals_simulation_results |>
+  group_by(Team, Result) |>
+  summarise(n = n()) |>
+  tidyr::pivot_wider(names_from = Result, values_from = n, values_fill = 0) |>
   mutate(TotalSims = rowSums(across(where(is.numeric))),
          WinPct = Winner / TotalSims * 100,
          RunnerUpPct = RunnerUp / TotalSims * 100) |>
@@ -422,9 +409,9 @@ However, Elo has an important limitation:
 
 In AFL, rich in-match statistics are available that describe team performance in much greater detail. For example:
 
-- Inside 50s (territory and scoring opportunities)
-- Contested possessions (pressure and physical dominance)
-- Kicks and marks (ball movement and control)
+-   Inside 50s (territory and scoring opportunities)
+-   Contested possessions (pressure and physical dominance)
+-   Kicks and marks (ball movement and control)
 
 These variables capture aspects of team performance that are not reflected in the final score alone.
 
@@ -438,7 +425,6 @@ Note: to keep things simple, we'll just use aggregated team-level statistics. Sp
 # Note the change in function (player stats instead of match results)
 afl2024 <- fitzRoy::fetch_player_stats_afltables(season = 2024)
 ```
-
 
 ```{r}
 # Annoyingly, the variable names are different as well
@@ -454,8 +440,8 @@ afl2024_rr |>
 
 ```{r}
 # These are the ones I selected:
-afl2024r <- afl2024_rr %>% 
-  filter(Round %in% c(1:23)) %>% 
+afl2024r <- afl2024_rr |> 
+  filter(Round %in% c(1:23)) |> 
   select(
     # Required stats
     Round, 
@@ -475,52 +461,53 @@ afl2024r <- afl2024_rr %>%
 
 ```{r}
 # Aggregate at the team level (Home)
-df_2024_Home <- afl2024r %>% 
-  group_by(Round, Playing.for) %>% 
+df_2024_Home <- afl2024r |> 
+  group_by(Round, Playing.for) |> 
   mutate(Home.Kicks = ifelse(Home.team == Playing.for, sum(Kicks), NA),
          Home.Marks = ifelse(Home.team == Playing.for, sum(Marks), NA),
          Home.Inside.50s = ifelse(Home.team == Playing.for, sum(Inside.50s), NA),
          Home.Tackles = ifelse(Home.team == Playing.for, sum(Tackles), NA),
-         Home.Frees.For = ifelse(Home.team == Playing.for, sum(Frees.For), NA)) %>% 
-  filter(row_number() == 1) %>% 
-  filter(!is.na(Home.Kicks)) %>% 
-  ungroup() %>% 
+         Home.Frees.For = ifelse(Home.team == Playing.for, sum(Frees.For), NA)) |> 
+  filter(row_number() == 1) |> 
+  filter(!is.na(Home.Kicks)) |> 
+  ungroup() |> 
   select(Round, Home.team, Home.score, Home.Kicks, Home.Marks,Home.Inside.50s, Home.Tackles, Home.Frees.For)
 
 # Aggregate at the team level (Away)
-df_2024_Away <- afl2024r %>% 
-  group_by(Round, Playing.for) %>% 
+df_2024_Away <- afl2024r |> 
+  group_by(Round, Playing.for) |> 
   mutate(Away.Kicks = ifelse(Away.team == Playing.for, sum(Kicks), NA),
          Away.Marks = ifelse(Away.team == Playing.for, sum(Marks), NA),
          Away.Inside.50s = ifelse(Away.team == Playing.for, sum(Inside.50s), NA),
          Away.Tackles = ifelse(Away.team == Playing.for, sum(Tackles), NA),
-         Away.Frees.For = ifelse(Away.team == Playing.for, sum(Frees.For), NA)) %>% 
-  filter(row_number() == 1) %>% 
-  filter(!is.na(Away.Kicks)) %>% 
-  ungroup() %>% 
+         Away.Frees.For = ifelse(Away.team == Playing.for, sum(Frees.For), NA)) |> 
+  filter(row_number() == 1) |> 
+  filter(!is.na(Away.Kicks)) |> 
+  ungroup() |> 
   select(Round, Away.team, Away.score, Away.Kicks, Away.Marks,Away.Inside.50s, Away.Tackles, Away.Frees.For)
 
 # Good old cbind
 df_2024_final <- 
-  df_2024_Home %>% 
-  cbind(df_2024_Away) %>% 
-  select(c(1,2,10,3,11,4:8,12:16)) %>% 
+  df_2024_Home |> 
+  cbind(df_2024_Away) |> 
+  select(c(1,2,10,3,11,4:8,12:16)) |> 
   mutate(Score = factor(ifelse(Home.score > Away.score, 1, 0)),
          Margin = Home.score - Away.score)
 ```
 
 ### Build the model
 
-I'm using the `tidy
+I'm using the \`tidy
 
 ```{r}
 # create a random forest spec
-rf_spec <- rand_forest() %>% 
-  set_engine("ranger") %>% 
+rf_spec <- rand_forest() |> 
+  set_engine("ranger") |> 
   set_mode("classification")
 
+# Keep it simple here (but you'd probably want to derive difference between metrics)
 rf_fit <- 
-  rf_spec %>% 
+  rf_spec |> 
   fit(Score ~ Home.Kicks + Away.Kicks +
         Home.Marks + Away.Marks +
         Home.Inside.50s + Away.Inside.50s +
@@ -535,60 +522,60 @@ Here I am aggregating the in-match statistics at the team level across the regul
 
 ```{r}
 Home <- 
-  df_2024_final %>% 
-  group_by(Home.team) %>% 
+  df_2024_final |> 
+  group_by(Home.team) |> 
   summarise(Home.Kicks = mean(Home.Kicks),
             Home.Marks = mean(Home.Marks),
             Home.Inside.50s = mean(Home.Inside.50s),
             Home.Tackles = mean(Home.Tackles),
-            Home.Frees.For = mean(Home.Frees.For)) %>% 
-  rename(team = Home.team)%>% 
+            Home.Frees.For = mean(Home.Frees.For)) |> 
+  rename(team = Home.team)|> 
   filter(team %in% c("Sydney",
-                     "GWS",
+                     "Greater Western Sydney",
                      "Brisbane Lions",
                      "Carlton",
-                     "Footscray",
+                     "Western Bulldogs",
                      "Hawthorn",
                      "Port Adelaide",
-                     "Geelong")) %>% 
+                     "Geelong")) |> 
   mutate(team = case_when(
     team == 'Sydney' ~ 'Sydney',
-    team == 'GWS' ~ 'GWS',
+    team == 'Greater Western Sydney' ~ 'GWS',
     team == 'Brisbane Lions' ~ 'Brisbane Lions',
     team == 'Carlton' ~ 'Carlton',
-    team == 'Footscray' ~ 'Footscay',
+    team == 'Western Bulldogs' ~ 'Western Bulldogs',
     team == 'Hawthorn' ~ 'Hawthorn',
     team == 'Port Adelaide' ~ 'Port Adelaide',
     team == 'Geelong' ~ 'Geelong'
   ))
 
 Away <- 
-  df_2024_final %>% 
-  group_by(Away.team) %>% 
+  df_2024_final |> 
+  group_by(Away.team) |> 
   summarise(Away.Kicks = mean(Away.Kicks),
             Away.Marks = mean(Away.Marks),
             Away.Inside.50s = mean(Away.Inside.50s),
             Away.Tackles = mean(Away.Tackles),
-            Away.Frees.For = mean(Away.Frees.For)) %>% 
-  rename(team = Away.team)%>% 
+            Away.Frees.For = mean(Away.Frees.For)) |> 
+  rename(team = Away.team)|> 
   filter(team %in% c("Sydney",
-                     "GWS",
+                     "Greater Western Sydney",
                      "Brisbane Lions",
                      "Carlton",
-                     "Footscray",
+                     "Western Bulldogs",
                      "Hawthorn",
                      "Port Adelaide",
-                     "Geelong")) %>% 
+                     "Geelong")) |> 
   mutate(team = case_when(
     team == 'Sydney' ~ 'Sydney',
-    team == 'GWS' ~ 'GWS',
+    team == 'Greater Western Sydney' ~ 'GWS',
     team == 'Brisbane Lions' ~ 'Brisbane Lions',
     team == 'Carlton' ~ 'Carlton',
-    team == 'Footscray' ~ 'Footscay',
+    team == 'Western Bulldogs' ~ 'Western Bulldogs',
     team == 'Hawthorn' ~ 'Hawthorn',
     team == 'Port Adelaide' ~ 'Port Adelaide',
     team == 'Geelong' ~ 'Geelong'
-  )) %>% 
+  )) |> 
   rename(opp = team)
 
 # Make grid
@@ -597,19 +584,19 @@ grid <-
                                'GWS',
                                'Brisbane Lions',
                                'Carlton',
-                               'Footscray',
+                               'Western Bulldogs',
                                'Hawthorn',
                                'Port Adelaide',
                                'Geelong'), 
-               repeats.allowed = FALSE) %>% 
+               repeats.allowed = FALSE) |> 
   as.data.frame()
 
 grid <- 
-  grid %>% 
+  grid |> 
   rename(team = V1,
-         opp = V2) %>% 
-  left_join(Home) %>% 
-  left_join(Away) %>% 
+         opp = V2) |> 
+  left_join(Home) |> 
+  left_join(Away) |> 
   mutate_if(is.numeric, round, 0)
 ```
 
@@ -617,11 +604,33 @@ grid <-
 
 ```{r}
 grid <- 
-  augment(rf_fit, new_data = grid) %>% 
-  select(team, opp, .pred_1, .pred_0) %>% 
+  augment(rf_fit, new_data = grid) |> 
+  select(team, opp, .pred_1, .pred_0) |> 
   rename(teamProb = 3,
          oppProb = 4)
+
+grid <- grid |> 
+  mutate(team = case_when(
+    team == 'Sydney' ~ 'Sydney',
+    team == 'GWS' ~ 'GWS',
+    team == 'Brisbane Lions' ~ 'Brisbane Lions',
+    team == 'Carlton' ~ 'Carlton',
+    team == 'Western Bulldogs' ~ 'Footscray',
+    team == 'Hawthorn' ~ 'Hawthorn',
+    team == 'Port Adelaide' ~ 'Port Adelaide',
+    team == 'Geelong' ~ 'Geelong'),
+    opp = case_when(
+      opp == 'Sydney' ~ 'Sydney',
+      opp == 'GWS' ~ 'GWS',
+      opp == 'Brisbane Lions' ~ 'Brisbane Lions',
+      opp == 'Carlton' ~ 'Carlton',
+      opp == 'Western Bulldogs' ~ 'Footscray',
+      opp == 'Hawthorn' ~ 'Hawthorn',
+      opp == 'Port Adelaide' ~ 'Port Adelaide',
+      opp == 'Geelong' ~ 'Geelong'))
+  
 ```
+
 
 ### Simulate the finals
 
@@ -635,21 +644,13 @@ finals_simulation_results <-
 
 ```{r}
 # Summarise:
-finals_simulation_results %>%
-  group_by(Team, Result) %>%
-  summarise(n = n()) %>%
-  tidyr::pivot_wider(names_from = Result, values_from = n, values_fill = 0) %>%
+finals_simulation_results |>
+  group_by(Team, Result) |>
+  summarise(n = n()) |>
+  tidyr::pivot_wider(names_from = Result, values_from = n, values_fill = 0) |>
   mutate(TotalSims = rowSums(across(where(is.numeric))),
          WinPct = Winner / TotalSims * 100,
          RunnerUpPct = RunnerUp / TotalSims * 100) |>
   select(1,2,3,4,5,6) |> 
   arrange(Winner)
 ```
-
-
-
-
-
-
-
-
